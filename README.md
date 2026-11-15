@@ -9,31 +9,35 @@ Kahoot-style live quiz for the four halls. Each hall's host screen creates its o
 - `firestore.rules`: security rules (players can only write their own name and one answer per round; only the host can change the game, read answers or write results).
 - `firestore.indexes.json`: turns off indexes on timestamp fields so thousands of answers can land in the same second without hitting Firestore's hotspot limit.
 
-## 1. Firebase setup (about 10 minutes)
+**Live:** host screen at https://devfest-ibadan-quiz.vercel.app/host · players at https://devfest-ibadan-quiz.vercel.app
 
-1. In the Firebase console, create a project (or reuse the GDG Ibadan one).
+## 1. Setup
+
+The live setup uses **Firebase** for data and sign-in and **Vercel** for hosting.
+
+### Firebase (data + sign-in)
+
+1. In the Firebase console, create a project. The live one is `devfest-ibadan-quiz-2026`.
 2. **Build > Authentication > Sign-in method**: enable **Anonymous**.
-3. **Build > Firestore Database**: create a database in production mode. Pick a nearby region (`africa-south1` or `europe-west1`).
+3. **Build > Firestore Database**: create a database in production mode, region `africa-south1` (or `europe-west1`).
 4. **Project settings > Your apps > Add app > Web**. Copy the `firebaseConfig` object into `public/config.js`.
-5. Deploy:
+5. Deploy the security rules and indexes:
    ```bash
    npm install -g firebase-tools
    firebase login
-   firebase use --add            # select your project
-   firebase deploy --only hosting,firestore
+   firebase use --add            # select your project (writes .firebaserc)
+   firebase deploy --only firestore
    ```
-6. You get a URL like `https://your-project.web.app`. Hosts open `https://your-project.web.app/host`; players go to `https://your-project.web.app` or scan the QR on screen.
 
-A custom domain (e.g. `quiz.devfestibadan.com`) can be added under Hosting > Add custom domain.
+### Vercel (hosting)
 
-### Hosting on Vercel (current setup)
+Pushing to `main` on GitHub deploys to production automatically. To deploy by hand: `vercel deploy --prod`.
 
-Some networks block Google's sign-in servers (`identitytoolkit` / `securetoken.googleapis.com`), which makes players see `auth/network-request-failed`. On Vercel, `vercel.json` relays those calls through `/gapi/auth` and `/gapi/token` on our own domain, and `public/js/backend.js` points the Auth SDK there. Phones then only talk to the Vercel site and Firestore.
+**Why Vercel and not Firebase Hosting:** some networks block Google's sign-in servers (`identitytoolkit` / `securetoken.googleapis.com`), which makes players see `auth/network-request-failed`. `vercel.json` relays those calls through `/gapi/auth` and `/gapi/token` on our own domain, and `public/js/backend.js` points the Auth SDK there. Phones then only talk to the Vercel site and Firestore.
 
-- Deploy the site: `vercel deploy --prod`
-- Deploy Firestore rules/indexes: `firebase deploy --only firestore`
-- The relay uses the bundled SDK's internal `auth.config.apiHost`; don't rebuild `public/vendor/firebase.js` with a newer SDK without re-testing sign-in.
-- The Firebase Hosting copy (`devfest-ibadan-quiz-2026.web.app`) skips the relay, so prefer the Vercel URL.
+- The relay uses the bundled SDK's internal `auth.config.apiHost`. Don't rebuild `public/vendor/firebase.js` with a newer SDK without re-testing sign-in on a restricted network.
+- The old Firebase Hosting copy (`devfest-ibadan-quiz-2026.web.app`) skips the relay, so share the Vercel URL.
+- A custom domain (e.g. `quiz.devfestibadan.com`) can be added in the Vercel project under Settings > Domains.
 
 ## 2. Capacity: built for thousands per hall
 
@@ -42,7 +46,7 @@ Some networks block Google's sign-in servers (`identitytoolkit` / `securetoken.g
 - Answers are written as separate documents with server timestamps, and their indexes are disabled, so a burst of thousands of taps in one second is fine.
 - The lobby shows the newest 60 names plus a "+N more" counter so the projector stays readable.
 
-**Use the Blaze (pay as you go) plan.** The free Spark plan caps Firestore at 50,000 reads and 20,000 writes a day; one hall of 1,000 players already uses about 55,000 reads. Rough cost on Blaze: a 10-question game with 3,000 players is about 170,000 reads and 35,000 writes, well under US$1. Set a budget alert (e.g. $10) in Google Cloud Billing.
+**Use the Blaze (pay as you go) plan.** The free Spark plan caps Firestore at 50,000 reads and 20,000 writes a day (resetting at 9:00 am Nigeria time). Each player uses about 55 reads per game, so the free plan runs out at roughly 900 players per day across all halls. Rough cost on Blaze: a 10-question game with 3,000 players is about 170,000 reads and 35,000 writes, well under US$1. Set a budget alert (e.g. $10) in Google Cloud Billing.
 
 ## 3. Running it on the day
 
@@ -56,7 +60,7 @@ Some networks block Google's sign-in servers (`identitytoolkit` / `securetoken.g
 
 ## 4. Scoring
 
-Correct answers earn 500 to 1,000 points depending on speed (server-timestamped, so a slow phone clock doesn't matter), plus a streak bonus of +100 per consecutive correct answer (max +500). Wrong or missing answers earn 0 and reset the streak.
+Each question has a 10-second timer (the `time` field in `questions.js`). Correct answers earn 500 to 1,000 points depending on speed (server-timestamped, so a slow phone clock doesn't matter), plus a streak bonus of +100 per consecutive correct answer (max +500). Wrong or missing answers earn 0 and reset the streak.
 
 ## 5. Rehearse without Firebase
 
