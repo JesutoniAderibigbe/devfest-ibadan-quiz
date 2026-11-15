@@ -1,0 +1,10 @@
+{
+  "indexes": [],
+  "fieldOverrides": [
+    { "collectionGroup": "answers", "fieldPath": "at", "indexes": [] },
+    { "collectionGroup": "answers", "fieldPath": "choice", "indexes": [] },
+    { "collectionGroup": "players", "fieldPath": "joinedAt", "indexes": [] },
+    { "collectionGroup": "players", "fieldPath": "name", "indexes": [] },
+    { "collectionGroup": "results", "fieldPath": "r", "indexes": [] }
+  ]
+}

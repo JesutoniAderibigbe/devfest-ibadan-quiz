@@ -1,0 +1,54 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function isHost(pin) {
+      return signedIn() && get(/databases/$(database)/documents/games/$(pin)).data.hostId == request.auth.uid;
+    }
+
+    // One document per live game, keyed by its 6-digit PIN. Only the host writes it.
+    match /games/{pin} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && pin.matches('^[0-9]{6}$')
+        && request.resource.data.hostId == request.auth.uid;
+      allow update: if signedIn()
+        && resource.data.hostId == request.auth.uid
+        && request.resource.data.hostId == request.auth.uid;
+      allow delete: if signedIn() && resource.data.hostId == request.auth.uid;
+
+      // Each player creates exactly their own entry.
+      match /players/{uid} {
+        allow read: if signedIn();
+        allow create: if signedIn()
+          && request.auth.uid == uid
+          && request.resource.data.keys().hasOnly(['name', 'joinedAt'])
+          && request.resource.data.name is string
+          && request.resource.data.name.size() >= 1
+          && request.resource.data.name.size() <= 16
+          && request.resource.data.joinedAt == request.time;
+        allow update: if false;
+        allow delete: if request.auth.uid == uid || isHost(pin);
+      }
+
+      // Per-player results, sharded into 16 small docs. Readable by players, written by the host.
+      match /results/{shard} {
+        allow read: if signedIn();
+        allow write: if isHost(pin);
+      }
+
+      // One answer per player per round, timestamped by the server. Only the host can read answers.
+      match /rounds/{round}/answers/{uid} {
+        allow create: if signedIn()
+          && request.auth.uid == uid
+          && request.resource.data.keys().hasOnly(['choice', 'at'])
+          && request.resource.data.choice is int
+          && request.resource.data.choice >= 0
+          && request.resource.data.choice <= 3
+          && request.resource.data.at == request.time;
+        allow read: if isHost(pin);
+        allow update, delete: if false;
+      }
+    }
+  }
+}

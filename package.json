@@ -1,0 +1,16 @@
+{
+  "name": "devfest-ibadan-quiz",
+  "version": "1.0.0",
+  "description": "Kahoot-style live quiz for DevFest Ibadan 2026",
+  "scripts": {
+    "build:vendor": "esbuild vendor-src/firebase-entry.js --bundle --format=esm --minify --outfile=public/vendor/firebase.js && esbuild vendor-src/qr-entry.js --bundle --format=esm --minify --outfile=public/vendor/qrcode.js",
+    "serve": "cd public && python3 -m http.server 8080"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "firebase": "^13.3.0",
+    "qrcode-generator": "^2.0.4"
+  }
+}
